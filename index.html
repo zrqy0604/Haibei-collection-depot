@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>小铭测试1.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    #app {
+      width: 100vw;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #gameArea {
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 9 / 16;
+      border-radius: 16px;
+      background: radial-gradient(circle at 50% 90%, #1f2937 0, #020617 65%);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+    }
+    #hud {
+      position: absolute;
+      top: 8px; left: 8px; right: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #f9fafb;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+      z-index: 5;
+    }
+    #hud span {
+      background: rgba(15,23,42,0.85);
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    #hud .label { font-size: 11px; opacity: 0.9; }
+
+    /* 通用面板 */
+    .panel {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #e5e7eb;
+      border-radius: inherit;
+      text-align: center;
+      padding: 20px 16px;
+      z-index: 10;
+    }
+    .panel.hidden { display: none; }
+    .panel h1 { margin: 0 0 4px; font-size: 22px; }
+    .panel h2 { margin: 0; font-size: 20px; }
+    .panel p { margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5; }
+    .panel small { font-size: 11px; color: #6b7280; }
+    .panel .sub { font-size: 12px; color: #9ca3af; }
+    button {
+      margin-top: 4px;
+      border: none;
+      border-radius: 999px;
+      padding: 9px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      background: linear-gradient(135deg, #f97316, #facc15);
+      box-shadow: 0 10px 25px rgba(15,23,42,0.8);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active { transform: scale(0.96); }
+    button.secondary {
+      background: rgba(255,255,255,0.1);
+      color: #e5e7eb;
+      box-shadow: none;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    button.danger {
+      background: rgba(239,68,68,0.15);
+      color: #fca5a5;
+      box-shadow: none;
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+
+    /* 图片设置面板 */
+    #imagePanel {
+      overflow-y: auto;
+      justify-content: flex-start;
+      padding-top: 28px;
+      padding-bottom: 28px;
+    }
+    #imagePanel h2 { font-size: 18px; margin-bottom: 4px; }
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+      max-width: 300px;
+      margin: 8px 0;
+    }
+    .slot {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 2px dashed rgba(255,255,255,0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      background: rgba(255,255,255,0.03);
+      transition: border-color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .slot:active { border-color: rgba(249,115,22,0.6); }
+    .slot.filled { border-style: solid; border-color: rgba(249,115,22,0.4); }
+    .slot .plus {
+      font-size: 24px;
+      color: rgba(255,255,255,0.25);
+      line-height: 1;
+    }
+    .slot .slot-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 2px;
+    }
+    .slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    .slot .delete-btn {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(239,68,68,0.85);
+      color: white;
+      font-size: 12px;
+      line-height: 20px;
+      text-align: center;
+      cursor: pointer;
+      display: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      box-shadow: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .slot.filled .delete-btn { display: block; }
+    .slot.filled .plus,
+    .slot.filled .slot-label { display: none; }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .tip-box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: #9ca3af;
+      line-height: 1.5;
+      max-width: 300px;
+    }
+
+    /* 加载提示 */
+    #loadingOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,23,42,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border-radius: inherit;
+      z-index: 20;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #f97316;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #tip { margin-top: 6px; font-size: 11px; color: #6b7280; }
+
+    @media (max-height: 580px) {
+      #gameArea { border-radius: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="gameArea">
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div>
+        <span id="scoreEl">0</span>
+        <span class="label" style="margin-left:4px">分</span>
+      </div>
+      <div>
+        <span class="label">生命</span>
+        <span id="livesEl">♥♥♥</span>
+      </div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div id="startScreen" class="panel">
+      <h1>🍉 切水果</h1>
+      <p>按住屏幕划过目标即可切开<br>没切到会扣命，生命为 0 游戏结束</p>
+      <div id="imgCountTip" style="font-size:12px;color:#f97316;display:none;"></div>
+      <button id="startBtn">开始游戏</button>
+      <button id="customBtn" class="secondary">📷 自定义图片</button>
+      <div id="tip">微信内可长按链接→在浏览器中打开</div>
+    </div>
+
+    <!-- 自定义图片面板 -->
+    <div id="imagePanel" class="panel hidden">
+      <h2>📷 自定义切割图片</h2>
+      <p>点击下方格子上传你想切的东西</p>
+      <div class="slot-grid" id="slotGrid"></div>
+      <div class="tip-box">
+        建议上传正方形图片，图片会自动压缩<br>
+        最多 6 张，未上传的格子使用默认水果
+      </div>
+      <div class="btn-row">
+        <button id="saveImgBtn">✓ 保存并返回</button>
+        <button id="clearImgBtn" class="danger">清除全部</button>
+      </div>
+      <button id="backBtn" class="secondary" style="margin-top:2px">← 返回</button>
+    </div>
+
+    <!-- 游戏结束 -->
+    <div id="gameOver" class="panel hidden">
+      <h2>游戏结束</h2>
+      <div class="sub">最终得分：<span id="finalScore">0</span> 分</div>
+      <button id="restartBtn">再来一局</button>
+      <button id="backMenuBtn" class="secondary">返回主页</button>
+    </div>
+
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay">
+      <div class="spinner"></div>
+      <div style="font-size:13px;color:#9ca3af">加载图片中…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== DOM =====
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const startScreen = document.getElementById('startScreen');
+  const gameOverScreen = document.getElementById('gameOver');
+  const imagePanel = document.getElementById('imagePanel');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const customBtn = document.getElementById('customBtn');
+  const saveImgBtn = document.getElementById('saveImgBtn');
+  const clearImgBtn = document.getElementById('clearImgBtn');
+  const backBtn = document.getElementById('backBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const backMenuBtn = document.getElementById('backMenuBtn');
+  const scoreEl = document.getElementById('scoreEl');
+  const livesEl = document.getElementById('livesEl');
+  const finalScoreEl = document.getElementById('finalScore');
+  const slotGrid = document.getElementById('slotGrid');
+  const imgCountTip = document.getElementById('imgCountTip');
+
+  // ===== Canvas 尺寸 =====
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.logicalWidth = rect.width;
+    canvas.logicalHeight = rect.height;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // ===== 自定义图片系统 =====
+  const MAX_SLOTS = 6;
+  const STORAGE_KEY = 'fruit_slasher_images_v2';
+  let customImages = [];   // base64 数组，长度 = MAX_SLOTS，空位为 null
+  let imageObjects = [];   // Image 对象数组，与 customImages 对应
+  let tempImages = [];     // 编辑中的临时数组
+
+  // 默认水果（用于没有上传图片的槽位）
+  const DEFAULT_FRUITS = [
+    { color: '#22c55e', stroke: '#15803d', radius: 26, points: 1 },
+    { color: '#f97316', stroke: '#c2410c', radius: 22, points: 1 },
+    { color: '#ef4444', stroke: '#b91c1c', radius: 24, points: 1 },
+    { color: '#facc15', stroke: '#ca8a04', radius: 21, points: 1 },
+    { color: '#6366f1', stroke: '#4338ca', radius: 16, points: 2 },
+  ];
+
+  function initCustomImages() {
+    customImages = new Array(MAX_SLOTS).fill(null);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === MAX_SLOTS) {
+          customImages = parsed;
+        } else if (Array.isArray(parsed)) {
+          // 兼容旧版本：任意长度
+          for (let i = 0; i < Math.min(parsed.length, MAX_SLOTS); i++) {
+            customImages[i] = parsed[i];
+          }
+        }
+      }
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function saveCustomImagesToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(customImages));
+    } catch (e) {
+      alert('存储空间不足，请减少图片数量或使用更小的图片');
+    }
+  }
+
+  function countFilledSlots() {
+    return customImages.filter(x => x !== null).length;
+  }
+
+  function updateImgCountTip() {
+    const count = countFilledSlots();
+    if (count > 0) {
+      imgCountTip.style.display = 'block';
+      imgCountTip.textContent = '已设置 ' + count + ' 张自定义图片';
+    } else {
+      imgCountTip.style.display = 'none';
+    }
+  }
+
+  // 压缩图片为 base64
+  function compressImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        const c = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        const maxDim = 128;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        w = Math.max(1, w);
+        h = Math.max(1, h);
+        c.width = w; c.height = h;
+        const cx = c.getContext('2d');
+        cx.drawImage(img, 0, 0, w, h);
+        let quality = 0.75;
+        let dataUrl;
+        do {
+          dataUrl = c.toDataURL('image/jpeg', quality);
+          quality -= 0.1;
+        } while (dataUrl.length > 80000 && quality > 0.1);
+        callback(dataUrl);
+      };
+      img.onerror = function () { callback(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { callback(null); };
+    reader.readAsDataURL(file);
+  }
+
+  // 将 customImages 加载为 Image 对象
+  function loadImageObjects(callback) {
+    imageObjects = new Array(MAX_SLOTS).fill(null);
+    let loaded = 0;
+    let toLoad = 0;
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (customImages[i]) toLoad++;
+    }
+    if (toLoad === 0) { callback(); return; }
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (!customImages[i]) continue;
+      const img = new Image();
+      img.onload = function () {
+        imageObjects[i] = img;
+        loaded++;
+        if (loaded === toLoad) callback();
+      };
+      img.onerror = function () {
+        imageObjects[i] = null;
+        loaded++;
+        if (loaded === toLoad) callback();
+      };
+      img.src = customImages[i];
+    }
+  }
+
+  // ===== 图片设置面板 UI =====
+  function renderSlots() {
+    slotGrid.innerHTML = '';
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      const slot = document.createElement('div');
+      slot.className = 'slot' + (tempImages[i] ? ' filled' : '');
+
+      if (tempImages[i]) {
+        const img = document.createElement('img');
+        img.src = tempImages[i];
+        slot.appendChild(img);
+
+        const del = document.createElement('button');
+        del.className = 'delete-btn';
+        del.textContent = '×';
+        del.addEventListener('click', function (e) {
+          e.stopPropagation();
+          tempImages[i] = null;
+          renderSlots();
+        });
+        slot.appendChild(del);
+      } else {
+        const plus = document.createElement('div');
+        plus.className = 'plus';
+        plus.textContent = '+';
+        slot.appendChild(plus);
+        const label = document.createElement('div');
+        label.className = 'slot-label';
+        label.textContent = '添加';
+        slot.appendChild(label);
+      }
+
+      (function (index) {
+        slot.addEventListener('click', function () {
+          if (tempImages[index]) return; // 已有图片，点删除按钮
+          pickImage(index);
+        });
+      })(i);
+
+      slotGrid.appendChild(slot);
+    }
+  }
+
+  function pickImage(slotIndex) {
+    // 创建文件选择器
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function () {
+      if (input.files && input.files[0]) {
+        compressImage(input.files[0], function (dataUrl) {
+          if (dataUrl) {
+            tempImages[slotIndex] = dataUrl;
+            renderSlots();
+          } else {
+            alert('图片读取失败，请换一张试试');
+          }
+        });
+      }
+      document.body.removeChild(input);
+    });
+    // 兼容微信：某些情况下需要触发 click
+    setTimeout(function () { input.click(); }, 50);
+  }
+
+  // 面板切换
+  function showImagePanel() {
+    tempImages = customImages.slice(); // 拷贝一份用于编辑
+    renderSlots();
+    imagePanel.classList.remove('hidden');
+    startScreen.classList.add('hidden');
+  }
+
+  function hideImagePanel() {
+    imagePanel.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    updateImgCountTip();
+  }
+
+  saveImgBtn.addEventListener('click', function () {
+    customImages = tempImages.slice();
+    saveCustomImagesToStorage();
+    hideImagePanel();
+  });
+
+  clearImgBtn.addEventListener('click', function () {
+    tempImages = new Array(MAX_SLOTS).fill(null);
+    renderSlots();
+  });
+
+  backBtn.addEventListener('click', hideImagePanel);
+  customBtn.addEventListener('click', showImagePanel);
+
+  // ===== 游戏状态 =====
+  let gameState = 'menu';
+  let score = 0;
+  let lives = 3;
+  let gameTime = 0;
+  let fruits = [];
+  let particles = [];
+  let trail = [];
+  let isPointerDown = false;
+  let pointerX = 0;
+  let pointerY = 0;
+  let lastTime = 0;
+  let spawnTimer = 0;
+  let spawnInterval = 1.2;
+  let difficultyLevel = 0;
+
+  const GRAVITY = 500;
+  const TRAIL_LIFETIME = 0.18;
+
+  // ===== 工具函数 =====
+  function rand(min, max) { return Math.random() * (max - min) + min; }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function dist(x1, y1, x2, y2) {
+    return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+  }
+  function distToSegment(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return dist(px, py, x1, y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = clamp(t, 0, 1);
+    return dist(px, py, x1 + t * dx, y1 + t * dy);
+  }
+
+  // ===== 水果生成 =====
+  function createFruit() {
+    const w = canvas.logicalWidth;
+    const h = canvas.logicalHeight;
+    const xPos = rand(40, w - 40);
+
+    // 决定用自定义图片还是默认水果
+    const filledIndices = [];
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (customImages[i] && imageObjects[i]) filledIndices.push(i);
+    }
+    const useCustom = filledIndices.length > 0 && Math.random() < 0.85;
+
+    let imgIdx = -1;
+    let color, stroke, radius, points;
+
+    if (useCustom) {
+      imgIdx = filledIndices[randInt(0, filledIndices.length - 1)];
+      radius = 28;
+      points = 1;
+      color = null;
+      stroke = null;
+    } else {
+      const def = DEFAULT_FRUITS[randInt(0, DEFAULT_FRUITS.length - 1)];
+      color = def.color;
+      stroke = def.stroke;
+      radius = def.radius;
+      points = def.points;
+    }
+
+    return {
+      x: xPos,
+      y: h + 30,
+      vx: rand(-70, 70),
+      vy: -rand(480, 650),
+      radius: radius,
+      color: color,
+      stroke: stroke,
+      points: points,
+      imgIdx: imgIdx,       // -1 表示用默认圆形
+      life: 0,
+      sliced: false,
+      sliceAlpha: 1,
+    };
+  }
+
+  // ===== 粒子 =====
+  function spawnParticles(x, y, color) {
+    const count = randInt(8, 14);
+    for (let i = 0; i < count; i++) {
+      const angle = rand(0, Math.PI * 2);
+      const speed = rand(80, 250);
+      particles.push({
+        x: x, y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 140,
+        radius: rand(2, 5),
+        color: color,
+        life: rand(0.3, 0.65),
+        maxLife: 0.65,
+      });
+    }
+  }
+
+  function addTrailPoint(x, y) {
+    trail.push({ x: x, y: y, life: TRAIL_LIFETIME });
+  }
+
+  // ===== UI =====
+  function updateUI() {
+    scoreEl.textContent = score;
+    const hearts = [];
+    for (let i = 0; i < lives; i++) hearts.push('♥');
+    livesEl.textContent = hearts.length === 0 ? '—' : hearts.join('');
+  }
+
+  // ===== 游戏控制 =====
+  function startGame() {
+    loadingOverlay.style.display = 'flex';
+    loadImageObjects(function () {
+      loadingOverlay.style.display = 'none';
+      gameState = 'playing';
+      score = 0;
+      lives = 3;
+      gameTime = 0;
+      fruits = [];
+      particles = [];
+      trail = [];
+      spawnTimer = 0;
+      spawnInterval = 1.2;
+      difficultyLevel = 0;
+      startScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+      imagePanel.classList.add('hidden');
+      updateUI();
+      lastTime = performance.now();
+      requestAnimationFrame(gameLoop);
+    });
+  }
+
+  function endGame() {
+    gameState = 'over';
+    finalScoreEl.textContent = score;
+    gameOverScreen.classList.remove('hidden');
+  }
+
+  function backToMenu() {
+    gameState = 'menu';
+    gameOverScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    updateImgCountTip();
+    // 渲染一帧空背景
+    render();
+  }
+
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', startGame);
+  backMenuBtn.addEventListener('click', backToMenu);
+
+  // ===== 输入处理 =====
+  function getCanvasCoords(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  function handlePointerDown(e) {
+    e.preventDefault();
+    if (gameState !== 'playing') return;
+    isPointerDown = true;
+    const c = getCanvasCoords(e.clientX, e.clientY);
+    pointerX = c.x; pointerY = c.y;
+    trail = [];
+    addTrailPoint(c.x, c.y);
+  }
+  function handlePointerMove(e) {
+    e.preventDefault();
+    if (!isPointerDown || gameState !== 'playing') return;
+    const c = getCanvasCoords(e.clientX, e.clientY);
+    if (dist(pointerX, pointerY, c.x, c.y) > 4) {
+      addTrailPoint(c.x, c.y);
+      checkSlice(pointerX, pointerY, c.x, c.y);
+      pointerX = c.x; pointerY = c.y;
+    }
+  }
+  function handlePointerUp(e) {
+    e.preventDefault();
+    isPointerDown = false;
+  }
+
+  canvas.addEventListener('mousedown', handlePointerDown);
+  window.addEventListener('mousemove', handlePointerMove);
+  window.addEventListener('mouseup', handlePointerUp);
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.touches.length > 0) {
+      var t = e.touches[0];
+      handlePointerDown({ clientX: t.clientX, clientY: t.clientY, preventDefault: function () { e.preventDefault(); } });
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function (e) {
+    if (e.touches.length > 0) {
+      var t = e.touches[0];
+      handlePointerMove({ clientX: t.clientX, clientY: t.clientY, preventDefault: function () { e.preventDefault(); } });
+    }
+  }, { passive: false });
+  canvas.addEventListener('touchend', function (e) {
+    handlePointerUp({ preventDefault: function () { e.preventDefault(); } });
+  }, { passive: false });
+
+  // ===== 切割判定 =====
+  function checkSlice(x1, y1, x2, y2) {
+    for (let i = 0; i < fruits.length; i++) {
+      var f = fruits[i];
+      if (f.sliced) continue;
+      var d = distToSegment(f.x, f.y, x1, y1, x2, y2);
+      if (d <= f.radius + 6) {
+        f.sliced = true;
+        score += f.points;
+        updateUI();
+        // 粒子颜色：自定义图片用橙色粒子，默认用水果颜色
+        var pColor = f.imgIdx >= 0 ? '#f97316' : f.color;
+        spawnParticles(f.x, f.y, pColor);
+      }
+    }
+  }
+
+  // ===== 更新 =====
+  function update(dt) {
+    if (gameState !== 'playing') return;
+    gameTime += dt;
+
+    var newLevel = Math.floor(gameTime / 10);
+    if (newLevel > difficultyLevel) {
+      difficultyLevel = newLevel;
+      spawnInterval = Math.max(0.35, spawnInterval - 0.12);
+    }
+
+    spawnTimer += dt;
+    if (spawnTimer >= spawnInterval) {
+      spawnTimer -= spawnInterval;
+      var count = difficultyLevel >= 2 ? randInt(1, 3) : 1;
+      for (var i = 0; i < count; i++) fruits.push(createFruit());
+    }
+
+    var h = canvas.logicalHeight;
+    for (var i = fruits.length - 1; i >= 0; i--) {
+      var f = fruits[i];
+      f.life += dt;
+      f.vy += GRAVITY * dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      if (f.sliced) {
+        f.sliceAlpha -= dt * 2.5;
+        if (f.sliceAlpha < 0) f.sliceAlpha = 0;
+      }
+      if (!f.sliced && f.y > h + 50) {
+        lives--;
+        updateUI();
+        f.sliced = true;
+        f.sliceAlpha = 0;
+        if (lives <= 0) { endGame(); return; }
+      }
+    }
+    fruits = fruits.filter(function (f) { return f.sliceAlpha > 0 || f.life < 4.5; });
+
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      p.life -= dt;
+      p.vy += GRAVITY * 0.7 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+    particles = particles.filter(function (p) { return p.life > 0; });
+
+    for (var i = trail.length - 1; i >= 0; i--) {
+      trail[i].life -= dt;
+    }
+    trail = trail.filter(function (t) { return t.life > 0; });
+  }
+
+  // ===== 渲染 =====
+  function render() {
+    var w = canvas.logicalWidth;
+    var h = canvas.logicalHeight;
+    ctx.clearRect(0, 0, w, h);
+
+    // 背景
+    var bg = ctx.createRadialGradient(w / 2, h, 10, w / 2, h, h * 1.1);
+    bg.addColorStop(0, '#0f172a');
+    bg.addColorStop(0.6, '#020617');
+    bg.addColorStop(1, '#020617');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // 水果
+    for (var i = 0; i < fruits.length; i++) {
+      var f = fruits[i];
+      ctx.save();
+      ctx.globalAlpha = f.sliceAlpha;
+      var r = Math.max(1, f.radius);
+
+      if (f.imgIdx >= 0 && imageObjects[f.imgIdx]) {
+        // ---- 自定义图片 ----
+        var img = imageObjects[f.imgIdx];
+        if (!f.sliced) {
+          // 阴影
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 12;
+          ctx.shadowOffsetY = 4;
+          ctx.drawImage(img, f.x - r, f.y - r, r * 2, r * 2);
+          ctx.shadowColor = 'transparent';
+          // 圆形边框
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // 高光
+          ctx.beginPath();
+          ctx.arc(f.x - r * 0.25, f.y - r * 0.3, r * 0.3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.18)';
+          ctx.fill();
+        } else {
+          // 切开效果 - 用 clip 裁剪成两半
+          var offset = r * 0.35;
+          // 左半
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(f.x - offset, f.y, r, -Math.PI / 2, Math.PI / 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(img, f.x - r - offset, f.y - r, r * 2, r * 2);
+          ctx.restore();
+          // 右半
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(f.x + offset, f.y, r, Math.PI / 2, -Math.PI / 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(img, f.x - r + offset, f.y - r, r * 2, r * 2);
+          ctx.restore();
+          // 切口线
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(f.x - offset, f.y - r);
+          ctx.lineTo(f.x - offset, f.y + r);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(f.x + offset, f.y - r);
+          ctx.lineTo(f.x + offset, f.y + r);
+          ctx.stroke();
+        }
+      } else {
+        // ---- 默认圆形水果 ----
+        if (!f.sliced) {
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 12;
+          ctx.shadowOffsetY = 4;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = f.color;
+          ctx.fill();
+          ctx.strokeStyle = f.stroke;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.shadowColor = 'transparent';
+          ctx.beginPath();
+          ctx.arc(f.x - r * 0.25, f.y - r * 0.25, r * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          ctx.fill();
+        } else {
+          var offset = r * 0.35;
+          ctx.beginPath();
+          ctx.arc(f.x - offset, f.y, r, -Math.PI / 2, Math.PI / 2);
+          ctx.fillStyle = f.color;
+          ctx.fill();
+          ctx.strokeStyle = f.stroke;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(f.x + offset, f.y, r, Math.PI / 2, -Math.PI / 2);
+          ctx.fillStyle = f.color;
+          ctx.fill();
+          ctx.strokeStyle = f.stroke;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    // 粒子
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      ctx.save();
+      ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.5, p.radius), 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 6;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 轨迹
+    if (trail.length >= 2) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(239,68,68,0.7)';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(239,68,68,0.8)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (var i = 1; i < trail.length; i++) {
+        ctx.globalAlpha = clamp(trail[i].life / TRAIL_LIFETIME, 0, 1);
+        ctx.lineTo(trail[i].x, trail[i].y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (var i = 1; i < trail.length; i++) {
+        ctx.globalAlpha = clamp(trail[i].life / TRAIL_LIFETIME, 0, 1);
+        ctx.lineTo(trail[i].x, trail[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ===== 游戏循环 =====
+  function gameLoop(timestamp) {
+    if (gameState === 'over' || gameState === 'menu') return;
+    var dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+    lastTime = timestamp;
+    update(dt);
+    render();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // ===== 初始化 =====
+  initCustomImages();
+  updateImgCountTip();
+  render();
+</script>
+</body>
+</html>
